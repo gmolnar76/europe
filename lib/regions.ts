@@ -1,7 +1,11 @@
 export type Scenario = "sovereign" | "federal" | "overlay";
 
-// Demo EU subset (extend later)
-const EU = ["FR", "DE", "PL", "ES", "IT"] as const;
+// EU-27 ISO A2 codes
+const EU = [
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR",
+  "DE", "GR", "HU", "IE", "IT", "LT", "LU", "LV", "MT", "NL",
+  "PL", "PT", "RO", "SE", "SI", "SK", "ES"
+] as const;
 
 const EFTA_UK = ["GB", "NO", "CH", "IS", "LI"] as const; // GB not UK per ISO-3166
 const NATO_EUROPE_EXTRA = ["TR"] as const; // simplified
@@ -9,19 +13,44 @@ const NA_ATLANTIC = ["US", "CA"] as const;
 
 const EAEU_CORE = ["RU", "BY", "KZ", "AM", "KG"] as const;
 
-const CODE_TO_ADMIN: Record<string, string> = {
+// Use NAME property for all country mappings (as in the GeoJSON source)
+const CODE_TO_NAME: Record<string, string> = {
+  AT: "Austria",
+  BE: "Belgium",
+  BG: "Bulgaria",
+  HR: "Croatia",
+  CY: "Cyprus",
+  CZ: "Czech Republic",
+  DK: "Denmark",
+  EE: "Estonia",
+  FI: "Finland",
   FR: "France",
   DE: "Germany",
-  PL: "Poland",
-  ES: "Spain",
+  GR: "Greece",
+  HU: "Hungary",
+  IE: "Ireland",
   IT: "Italy",
+  LT: "Lithuania",
+  LU: "Luxembourg",
+  LV: "Latvia",
+  MT: "Malta",
+  NL: "Netherlands",
+  PL: "Poland",
+  PT: "Portugal",
+  RO: "Romania",
+  SE: "Sweden",
+  SI: "Slovenia",
+  SK: "Slovakia",
+  ES: "Spain",
+
+  // Others used elsewhere
   GB: "United Kingdom",
   NO: "Norway",
   CH: "Switzerland",
   IS: "Iceland",
   LI: "Liechtenstein",
   TR: "Turkey",
-  US: "United States of America",
+  US: "United States",
   CA: "Canada",
   RU: "Russia",
   BY: "Belarus",
@@ -30,8 +59,8 @@ const CODE_TO_ADMIN: Record<string, string> = {
   KG: "Kyrgyzstan",
 };
 
-function codesToAdminNames(list: readonly string[]): string[] {
-  return list.map((c) => CODE_TO_ADMIN[c]).filter(Boolean);
+function codesToName(list: readonly string[]): string[] {
+  return list.map((c) => CODE_TO_NAME[c]).filter(Boolean);
 }
 
 export function getEUList(): string[] {
@@ -46,18 +75,18 @@ export function getEZList(): string[] {
 }
 
 export function getEUAdminNames(): string[] {
-  return codesToAdminNames(EU);
+  return codesToName(EU);
 }
 export function getEAAdminNames(): string[] {
-  return codesToAdminNames(getEAList());
+  return codesToName(getEAList());
 }
 export function getEZAdminNames(): string[] {
-  return codesToAdminNames(getEZList());
+  return codesToName(getEZList());
 }
 
 export function getAdminToISO2Map(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [code, admin] of Object.entries(CODE_TO_ADMIN)) out[admin] = code;
+  for (const [code, name] of Object.entries(CODE_TO_NAME)) out[name] = code;
   return out;
 }
 
