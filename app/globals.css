@@ -29,3 +29,36 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Accessibility: clear keyboard focus ring */
+:where(a, button, [role="button"], input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* Text selection */
+::selection {
+  background-color: color-mix(in oklab, var(--color-gold) 35%, transparent);
+  color: var(--color-slate);
+}
+
+/* Map popup styling (matches brand) */
+.maplibregl-popup.eu-popup .maplibregl-popup-content {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-offwhite);
+  color: var(--color-slate);
+  border: 1px solid color-mix(in oklab, var(--color-midnight) 25%, transparent);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+}
+.maplibregl-popup.eu-popup .maplibregl-popup-tip {
+  border-top-color: var(--color-offwhite);
+  border-bottom-color: var(--color-offwhite);
+}
+
+/* Link styles */
+a { color: var(--color-midnight); }
+a:hover { color: var(--color-midnight); text-decoration: underline; text-decoration-color: var(--color-gold); }
+
+/* Advertise color scheme to the UA */
+:root { color-scheme: light dark; }
