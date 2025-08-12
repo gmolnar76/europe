@@ -28,3 +28,15 @@ Map
 
 License
 - MIT (TBD)
+ellenőrizd a projekt állapotát, nézd meg, hogy 
+
+Az oldal európai embereknek, európai emberekről szól.
+A 20. sz háborúi arról szóltak, hogy egy ismeretlen társadalom mérnökség felszámolja a tradicionális keresztény királyságokat, monarchiákat, társadalmakat. A kommunizmussal az önellátó paraszti, falusi társadalmat számolták fel, ami leválasztotta a köszösséget magasabb szakrális kötelékről, a nyugati jóléti demokrácia viszont más társadalmakat gyarmatosítva, kifosztva kényelembe és jólétbe tespedve ezt önmagától megtette.
+A társadalommérnökség az európai keresztény civilizáció felszámolásának utolsó fázisához érkezett.
+Önnek mi a véleménye erről a folyamatról. 
+Sajnálja? Visszafordítaná? Minderről nem tudott? Igazságtalannak tartja?
+Esetleg másképp képzelné el az európai fehér társadalom jövőét?
+Nemcsak ez Euro Atlanti tésrség lett megosztva Ny és Kelet Európára, de a fehér civilizáció, északi földrészen betöltött élettere is Euro-atlanti és Euro-ázsiai részekre is tagolódott. 
+Ön szerint érdemes lenne az európai kultúrának újradefiniálni az életterét és a kultúráját ?
+Ön szerint megérett a fehér európai társadalom arra, hogy megértse, hogy csapdába csalták és egisztenciális útelágazáshoz érkezett?
+Vegyen részt a konzultációban és fókuszálja a gondolatait egy élhető, fenntartható, kooperáción működő Európai közösség irányába. Az egész csak az elképzelésen múlik.

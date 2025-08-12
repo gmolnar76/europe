@@ -35,12 +35,12 @@ export default function Map({ className, height = 420 }: MapProps) {
     };
 
     const m = new maplibregl.Map({ container: mapRef.current, style, center: [10, 50], zoom: 3.5, attributionControl: { compact: true } });
-    // Keep the view flat: no pitch or rotation
-    m.setPitch(0);
+    // Enable tilted view (pitch), keep rotation locked
+    m.setPitch(35);
     m.setBearing(0);
     m.dragRotate.disable();
     m.touchZoomRotate.disableRotation();
-    m.addControl(new maplibregl.NavigationControl({ showZoom: true, showCompass: false, visualizePitch: false }), "top-right");
+    m.addControl(new maplibregl.NavigationControl({ showZoom: true, showCompass: false, visualizePitch: true }), "top-right");
 
     m.on("load", () => {
       m.addLayer({
@@ -231,6 +231,93 @@ export default function Map({ className, height = 420 }: MapProps) {
       if (m.isStyleLoaded()) apply(); else m.once("load", apply);
     };
 
+    // Fit map to a set of countries by ADMIN/NAME list, with optional ROI clipping and tuning
+    const fitToNames = async (
+      names: string[],
+      opts?: {
+        padding?: number;
+        duration?: number;
+        maxZoom?: number;
+        extraZoom?: number;
+        targetZoom?: number;
+        roi?: { minX: number; maxX: number; minY: number; maxY: number };
+      }
+    ) => {
+      const padding = opts?.padding ?? 6;
+      const duration = opts?.duration ?? 700;
+      const maxZoom = opts?.maxZoom ?? 8.5;
+      const extraZoom = opts?.extraZoom ?? 0.6;
+      const roi = opts?.roi;
+
+      const src: any = m.getSource("countries");
+      const getGeoJSON = async (): Promise<any | undefined> => {
+        const data = src && (src._data || (src._options && src._options.data));
+        if (data && data.features) return data;
+        try {
+          const res = await fetch(COUNTRIES_URL);
+          return await res.json();
+        } catch {
+          return undefined;
+        }
+      };
+
+      const fc = await getGeoJSON();
+      if (!fc || !fc.features) return;
+      const namesSet = new Set(names);
+      let gMinX = Infinity, gMinY = Infinity, gMaxX = -Infinity, gMaxY = -Infinity;
+      let rMinX = Infinity, rMinY = Infinity, rMaxX = -Infinity, rMaxY = -Infinity;
+      const inROI = (x: number, y: number) => !roi ? true : (x >= roi.minX && x <= roi.maxX && y >= roi.minY && y <= roi.maxY);
+      const coalesceName = (p: any) => p?.ADMIN || p?.NAME || p?.name || p?.NAME_EN || p?.name_en;
+      const walk = (coords: any) => {
+        if (!coords) return;
+        if (typeof coords[0] === "number") {
+          const x = coords[0], y = coords[1];
+          if (Number.isFinite(x) && Number.isFinite(y)) {
+            if (x < gMinX) gMinX = x; if (y < gMinY) gMinY = y;
+            if (x > gMaxX) gMaxX = x; if (y > gMaxY) gMaxY = y;
+            if (inROI(x, y)) {
+              if (x < rMinX) rMinX = x; if (y < rMinY) rMinY = y;
+              if (x > rMaxX) rMaxX = x; if (y > rMaxY) rMaxY = y;
+            }
+          }
+        } else {
+          for (const c of coords) walk(c);
+        }
+      };
+      for (const f of fc.features) {
+        const n = coalesceName(f.properties);
+        if (!namesSet.has(n)) continue;
+        if (f.geometry && (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon")) {
+          walk(f.geometry.coordinates);
+        }
+      }
+      const useROI = rMinX !== Infinity;
+      const minX = useROI ? rMinX : gMinX;
+      const minY = useROI ? rMinY : gMinY;
+      const maxX = useROI ? rMaxX : gMaxX;
+      const maxY = useROI ? rMaxY : gMaxY;
+      if (minX === Infinity) return;
+      const center: [number, number] = [ (minX + maxX) / 2, (minY + maxY) / 2 ];
+      const bounds: any = [[minX, minY], [maxX, maxY]];
+      try {
+        m.fitBounds(bounds, { padding, duration, maxZoom });
+        m.once("moveend", () => {
+          try {
+            const z = m.getZoom();
+            const nextZoom = typeof opts?.targetZoom === "number" ? Math.min(opts.targetZoom, maxZoom + 0.5) : Math.min(z + extraZoom, maxZoom + 0.5);
+            m.easeTo({ zoom: nextZoom, center, duration: 300 });
+          } catch {}
+        });
+      } catch {}
+    };
+
+    // Helper to reset view to default
+    const resetView = () => {
+      try {
+        m.easeTo({ center: [10, 50], zoom: 3.5, pitch: 65, bearing: 0, duration: 350 });
+      } catch {}
+    };
+
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<"sovereign" | "federal" | "overlay">).detail;
       if (detail === "sovereign") {
@@ -247,6 +334,8 @@ export default function Map({ className, height = 420 }: MapProps) {
         setBaseShades(euPlusRu);
         showEUFill(false);
       }
+      // Reset zoom to default for every state
+      resetView();
     };
     window.addEventListener("europa:set-scenario", handler as EventListener);
 
