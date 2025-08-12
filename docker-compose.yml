@@ -1,0 +1,20 @@
+version: '3.9'
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: europa-db
+    environment:
+      POSTGRES_USER: europa
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: europa_vote
+    ports:
+      - "5433:5432" # changed host port to avoid conflict
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U europa"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+volumes:
+  db_data:

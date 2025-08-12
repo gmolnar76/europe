@@ -2,6 +2,130 @@ import Map from "@/components/map/Map";
 import ScenariosCards from "@/components/ScenariosCards";
 import IntroDisclosure from "@/components/IntroDisclosure";
 import SupportBar from "@/components/SupportBar";
+import VoteWidget, { ChoiceDef } from "@/components/ui/VoteWidget";
+
+// Konfiguráció a több poll megjelenítéséhez
+const pollBlocks: {
+  anchor: string;
+  heading: string;
+  intro?: string;
+  pollSlug: string;
+  choices: ChoiceDef[];
+}[] = [
+  {
+    anchor: 'vote',
+    heading: 'Integrációs forgatókönyvek',
+    intro: 'Három vízió az európai integráció lehetséges irányairól.',
+    pollSlug: 'eu-integration-scenarios',
+    choices: [
+      { key: 'scenario_eu_states', label: 'Szuverén államok együttműködése', desc: 'Laza, államközi kooperáció erős nemzeti hatáskörökkel.' },
+      { key: 'scenario_united_europe', label: 'Európai Egyesült Államok', desc: 'Föderális struktúra egységes intézményi kerettel.' },
+      { key: 'scenario_ea_ez_overlay', label: 'Euroatlanti + Eurázsiai overlay', desc: 'Kettős civilizációs / geopolitikai integrációs réteg.' }
+    ]
+  },
+  {
+    anchor: 'leadership',
+    heading: 'EU politikai vezetés – transznacionális listák',
+    intro: 'Véleményed az EP választási rendszer lehetséges reformjáról.',
+    pollSlug: 'leadership-transnational-lists',
+    choices: [
+      { key: 'yes', label: 'Igen' },
+      { key: 'no', label: 'Nem' },
+      { key: 'unsure', label: 'Bizonytalan' }
+    ]
+  },
+  {
+    anchor: 'leadership2',
+    heading: 'EU politikai vezetés – Bizottság elnök kiválasztása',
+    intro: 'Különböző modellek a Bizottság elnökének legitimitására.',
+    pollSlug: 'leadership-commission-selection',
+    choices: [
+      { key: 'direct', label: 'Közvetlen választás' },
+      { key: 'spitzen', label: 'Spitzenkandidat' },
+      { key: 'council', label: 'Tanács jelölje' },
+      { key: 'unsure', label: 'Nem tudom' }
+    ]
+  },
+  {
+    anchor: 'leadership3',
+    heading: 'EU politikai vezetés – uniós népszavazás',
+    intro: 'Legyen-e uniós szintű referendum eszköz?',
+    pollSlug: 'leadership-eu-referendum',
+    choices: [
+      { key: 'support', label: 'Támogatom' },
+      { key: 'conditional', label: 'Feltételekkel' },
+      { key: 'oppose', label: 'Ellenzem' }
+    ]
+  },
+  {
+    anchor: 'migration',
+    heading: 'Migráció – szolidaritási mechanizmus',
+    intro: 'Preferált megoldás a tagállami tehermegosztásra.',
+    pollSlug: 'migration-solidarity-mechanism',
+    choices: [
+      { key: 'quota', label: 'Elosztási kvóta' },
+      { key: 'financial', label: 'Pénzügyi hozzájárulás' },
+      { key: 'mixed', label: 'Vegyes modell' },
+      { key: 'unsure', label: 'Nem tudom' }
+    ]
+  },
+  {
+    anchor: 'migration2',
+    heading: 'Migráció – készségpartnerségek',
+    intro: 'Legális munkaerő-migráció csatornáinak bővítése.',
+    pollSlug: 'migration-skill-partnerships',
+    choices: [
+      { key: 'yes', label: 'Igen' },
+      { key: 'conditional', label: 'Feltételekkel' },
+      { key: 'no', label: 'Nem' }
+    ]
+  },
+  {
+    anchor: 'migration3',
+    heading: 'Migráció – befogadó központ standardok',
+    intro: 'Egységes minimum standardok kérdése.',
+    pollSlug: 'migration-host-standards',
+    choices: [
+      { key: 'high', label: 'Igen, magas szint' },
+      { key: 'basic', label: 'Igen, alap szint' },
+      { key: 'no', label: 'Nem' }
+    ]
+  },
+  {
+    anchor: 'who',
+    heading: 'WHO – közös stratégiai készlet',
+    intro: 'Egységes EU stockpile igénye.',
+    pollSlug: 'who-stockpile',
+    choices: [
+      { key: 'yes', label: 'Igen' },
+      { key: 'partial', label: 'Részben (kritikus termékek)' },
+      { key: 'national', label: 'Maradjon nemzeti' },
+      { key: 'unsure', label: 'Nem tudom' }
+    ]
+  },
+  {
+    anchor: 'who2',
+    heading: 'WHO – közös tárgyalási álláspont',
+    intro: 'Pandémiás egyezmény EU álláspont.',
+    pollSlug: 'who-common-position',
+    choices: [
+      { key: 'support', label: 'Támogatom' },
+      { key: 'conditional', label: 'Feltételekkel' },
+      { key: 'oppose', label: 'Ellenzem' }
+    ]
+  },
+  {
+    anchor: 'who3',
+    heading: 'WHO – genomadat megosztás',
+    intro: 'Valós idejű genom szekvenálási adatok megosztása.',
+    pollSlug: 'who-genomic-sharing',
+    choices: [
+      { key: 'yes', label: 'Igen' },
+      { key: 'privacy', label: 'Igen, adatvédelmi garanciákkal' },
+      { key: 'no', label: 'Nem' }
+    ]
+  }
+];
 
 export default function Home() {
   return (
@@ -46,227 +170,23 @@ export default function Home() {
       {/* Scenarios */}
       <ScenariosCards />
 
-      {/* Vote placeholder */}
-      <section id="vote" className="mx-auto max-w-6xl px-4 py-12">
-        <div className="rounded-lg bg-white p-6 border border-black/5 shadow-sm text-slate">
-          <h2 className="text-2xl font-semibold text-midnight mb-4">
-            Válassz egy opciót
-          </h2>
-          <form className="grid gap-3 md:grid-cols-3">
-            <label className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-              <input type="radio" name="choice" value="sovereign" />
-              <span>
-                Szuverén nemzetállamok közössége (EU együttműködés)
-              </span>
-            </label>
-            <label className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-              <input type="radio" name="choice" value="federal" />
-              <span>Európai Egyesült Államok</span>
-            </label>
-            <label className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-              <input type="radio" name="choice" value="civilizational" />
-              <span>Euroatlanti és Eurázsiai egységes civilizáció</span>
-            </label>
-            <div className="md:col-span-3 flex items-center gap-3 mt-2">
-              <button
-                type="button"
-                className="px-5 py-2.5 rounded bg-midnight text-white"
-              >
-                Beküldés
-              </button>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" defaultChecked /> Vendégszavazás engedélyezése
-              </label>
+      {/* Dinamikus poll blokkok */}
+      <div className="mx-auto max-w-6xl px-4 py-12 space-y-12">
+        {pollBlocks.map(block => (
+          <section key={block.anchor} id={block.anchor} className="scroll-mt-24">
+            <div className="mb-4">
+              <h2 className="text-2xl font-semibold text-midnight mb-1">{block.heading}</h2>
+              {block.intro && <p className="text-sm text-black/60 max-w-2xl">{block.intro}</p>}
             </div>
-          </form>
-        </div>
-      </section>
-
-      {/* NEW: EU Political Leadership voting section */}
-      <section id="leadership" className="mx-auto max-w-6xl px-4 pb-12">
-        <div className="rounded-lg bg-white p-6 border border-black/5 shadow-sm text-slate space-y-6">
-          <header>
-            <h2 className="text-2xl font-semibold text-midnight mb-2">EU politikai vezetés</h2>
-            <p className="text-sm text-black/60">Próbakérdések a lehetséges intézményi és demokratikus reformokról.</p>
-          </header>
-          <form className="space-y-6" aria-labelledby="leadership-heading">
-            <fieldset className="space-y-3">
-              <legend id="leadership-q1" className="font-medium text-midnight">1. Támogatnád a transznacionális EP listák bevezetését?</legend>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { v: "yes", l: "Igen" },
-                  { v: "no", l: "Nem" },
-                  { v: "unsure", l: "Bizonytalan" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="leadership_q1" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-midnight">2. Legyen közvetlenül választott uniós Bizottság-elnök?</legend>
-              <div className="grid md:grid-cols-4 gap-3">
-                {[
-                  { v: "direct", l: "Közvetlen választás" },
-                  { v: "spitzen", l: "Spitzenkandidat" },
-                  { v: "council", l: "Tanács jelölje" },
-                  { v: "unsure", l: "Nem tudom" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="leadership_q2" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-midnight">3. Egyetértesz az uniós népszavazás (EU-wide referendum) lehetőségével?</legend>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { v: "support", l: "Támogatom" },
-                  { v: "conditional", l: "Feltételekkel" },
-                  { v: "oppose", l: "Ellenzem" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="leadership_q3" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className="flex items-center gap-4 pt-2">
-              <button type="button" className="px-5 py-2.5 rounded bg-midnight text-white">Válaszok mentése</button>
-              <span className="text-xs text-black/50">(Prototype – nem végleges tárolás)</span>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      {/* NEW: Migration voting section */}
-      <section id="migration" className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="rounded-lg bg-white p-6 border border-black/5 shadow-sm text-slate space-y-6">
-            <header>
-              <h2 className="text-2xl font-semibold text-midnight mb-2">Migráció és menekültügy</h2>
-              <p className="text-sm text-black/60">Próbakérdések a közös uniós migrációs politika elemeiről.</p>
-            </header>
-            <form className="space-y-6" aria-labelledby="migration-heading">
-              <fieldset className="space-y-3">
-                <legend className="font-medium text-midnight">1. Milyen szolidaritási mechanizmust támogatnál?</legend>
-                <div className="grid md:grid-cols-4 gap-3">
-                  {[
-                    { v: "quota", l: "Elosztási kvóta" },
-                    { v: "financial", l: "Pénzügyi hozzájárulás" },
-                    { v: "mixed", l: "Vegyes modell" },
-                    { v: "unsure", l: "Nem tudom" },
-                  ].map(o => (
-                    <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                      <input type="radio" name="migration_q1" value={o.v} />
-                      <span>{o.l}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <fieldset className="space-y-3">
-                <legend className="font-medium text-midnight">2. Bővítsük a legális munkaerő-migrációs csatornákat célzott készségpartnerségekkel?</legend>
-                <div className="grid md:grid-cols-3 gap-3">
-                  {[
-                    { v: "yes", l: "Igen" },
-                    { v: "conditional", l: "Feltételekkel" },
-                    { v: "no", l: "Nem" },
-                  ].map(o => (
-                    <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                      <input type="radio" name="migration_q2" value={o.v} />
-                      <span>{o.l}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <fieldset className="space-y-3">
-                <legend className="font-medium text-midnight">3. Szükség van-e egységes minimum standardokra a befogadó központokban?</legend>
-                <div className="grid md:grid-cols-3 gap-3">
-                  {[
-                    { v: "high", l: "Igen, magas szint" },
-                    { v: "basic", l: "Igen, alap szint" },
-                    { v: "no", l: "Nem" },
-                  ].map(o => (
-                    <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                      <input type="radio" name="migration_q3" value={o.v} />
-                      <span>{o.l}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="flex items-center gap-4 pt-2">
-                <button type="button" className="px-5 py-2.5 rounded bg-midnight text-white">Válaszok mentése</button>
-                <span className="text-xs text-black/50">(Prototype – nem végleges tárolás)</span>
-              </div>
-            </form>
-        </div>
-      </section>
-
-      {/* NEW: WHO / Globális egészség szekció */}
-      <section id="who" className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="rounded-lg bg-white p-6 border border-black/5 shadow-sm text-slate space-y-6">
-          <header>
-            <h2 className="text-2xl font-semibold text-midnight mb-2">WHO & globális egészség</h2>
-            <p className="text-sm text-black/60">Próbakérdések az EU szerepéről a WHO-val és a világjárvány‑felkészüléssel kapcsolatban.</p>
-          </header>
-          <form className="space-y-6" aria-labelledby="who-heading">
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-midnight">1. Erősebb közös uniós gyógyszer‑készlet (strategic stockpile) szükséges?</legend>
-              <div className="grid md:grid-cols-4 gap-3">
-                {[
-                  { v: "yes", l: "Igen" },
-                  { v: "partial", l: "Részben (kritikus termékek)" },
-                  { v: "national", l: "Maradjon nemzeti" },
-                  { v: "unsure", l: "Nem tudom" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="who_q1" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-midnight">2. Támogatod, hogy az EU közös álláspontot alakítson ki a WHO pandémiás egyezmény tárgyalásain?</legend>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { v: "support", l: "Támogatom" },
-                  { v: "conditional", l: "Feltételekkel" },
-                  { v: "oppose", l: "Ellenzem" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="who_q2" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="font-medium text-midnight">3. Legyen kötelező valós idejű genom szekvenálási adatmegosztás EU-s szinten új kórokozók esetén?</legend>
-              <div className="grid md:grid-cols-3 gap-3">
-                {[
-                  { v: "yes", l: "Igen" },
-                  { v: "privacy", l: "Igen, adatvédelmi garanciákkal" },
-                  { v: "no", l: "Nem" },
-                ].map(o => (
-                  <label key={o.v} className="flex items-center gap-2 p-3 border rounded hover:bg-black/5 cursor-pointer">
-                    <input type="radio" name="who_q3" value={o.v} />
-                    <span>{o.l}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            <div className="flex items-center gap-4 pt-2">
-              <button type="button" className="px-5 py-2.5 rounded bg-midnight text-white">Válaszok mentése</button>
-              <span className="text-xs text-black/50">(Prototype – nem végleges tárolás)</span>
-            </div>
-          </form>
-        </div>
-      </section>
+            <VoteWidget
+              pollSlug={block.pollSlug}
+              title={block.heading}
+              description={block.intro}
+              choices={block.choices}
+            />
+          </section>
+        ))}
+      </div>
 
       {/* Charts placeholder */}
       <section className="mx-auto max-w-6xl px-4 pb-16">
