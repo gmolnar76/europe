@@ -20,7 +20,7 @@ const CODE_TO_NAME: Record<string, string> = {
   BG: "Bulgaria",
   HR: "Croatia",
   CY: "Cyprus",
-  CZ: "Czech Republic",
+  CZ: "Czechia", // was "Czech Republic"; GeoJSON uses "Czechia"
   DK: "Denmark",
   EE: "Estonia",
   FI: "Finland",

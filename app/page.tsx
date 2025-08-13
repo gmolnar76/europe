@@ -160,15 +160,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Dev Map (experimental) */}
+      <section id="map-dev" className="mx-auto max-w-6xl px-4 mt-10 scroll-mt-24">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-midnight">Fejlesztő térkép (kísérleti)</h2>
+          <a href="#scenarios-dev" className="text-xs text-midnight/60 hover:text-midnight">Ugrás a szcenárió választóhoz</a>
+        </div>
+        <Map height={420} eventName="europa:set-scenario-dev" withLegend />
+        <p className="mt-2 text-[12px] text-black/50">Kísérleti rétegek / stílusok kipróbálására. Az alábbi szcenárió választó nem küld szavazatot automatikusan.</p>
+        <div id="scenarios-dev" className="mt-4">
+          <ScenariosCards
+            pollSlug="eu-integration-scenarios"
+            choiceMap={{ sovereign: 'scenario_eu_states', federal: 'scenario_united_europe', overlay: 'scenario_ea_ez_overlay' }}
+            autoVoteOnSelect={false}
+            eventName="europa:set-scenario-dev"
+            className="pt-0"
+          />
+        </div>
+        <details className="mt-4 rounded border border-black/10 bg-white p-3 text-xs text-black/70">
+          <summary className="cursor-pointer font-medium text-midnight">Fejlesztő panel</summary>
+          <ul className="mt-2 list-disc pl-5 space-y-1">
+            <li>Különálló instance – a fő térkép alatt lévő eredeti nem módosult.</li>
+            <li>A szcenárió kiválasztás csak a vizuális állapotot váltja (szavazat küldés gombbal).</li>
+            <li>Használható új rétegek, choropleth, overlay prototípushoz.</li>
+          </ul>
+        </details>
+      </section>
+
       {/* Map above selectable cards */}
       <IntroDisclosure />
       <section className="mx-auto max-w-6xl px-4 mt-6">
-        <Map height={420} />
+        <Map height={420} eventName="europa:set-scenario" />
         <p className="mt-2 text-sm text-black/60">A fenti vezérlővel válts a három szcenárió között.</p>
       </section>
 
       {/* Scenarios */}
-      <ScenariosCards />
+      <ScenariosCards
+        pollSlug="eu-integration-scenarios"
+        choiceMap={{
+          sovereign: 'scenario_eu_states',
+          federal: 'scenario_united_europe',
+          overlay: 'scenario_ea_ez_overlay'
+        }}
+        eventName="europa:set-scenario"
+      />
 
       {/* Dinamikus poll blokkok */}
       <div className="mx-auto max-w-6xl px-4 py-12 space-y-12">

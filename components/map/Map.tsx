@@ -1,18 +1,21 @@
 "use client";
 import * as React from "react";
-import maplibregl, { Map as MLMap, MapLayerMouseEvent, MapGeoJSONFeature, ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
+import maplibregl, { Map as MLMap } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { getEUList, getEUAdminNames } from "@/lib/regions";
+import { applyScenario, type ScenarioKey } from "./scenarios";
 
-export type MapProps = { className?: string; height?: number };
+export type MapProps = { className?: string; height?: number; eventName?: string; withLegend?: boolean };
 
 const COUNTRIES_URL = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
 
-export default function Map({ className, height = 420 }: MapProps) {
+export default function Map({ className, height = 420, eventName = 'europa:set-scenario', withLegend = false }: MapProps) {
   const mapRef = React.useRef<HTMLDivElement | null>(null);
   const map = React.useRef<MLMap | null>(null);
   const popupRef = React.useRef<maplibregl.Popup | null>(null);
   const hoveredIdRef = React.useRef<string | number | null>(null);
+  const [scenario, setScenario] = React.useState<ScenarioKey | null>(null);
 
   React.useEffect(() => {
     if (!mapRef.current || map.current) return;
@@ -35,8 +38,8 @@ export default function Map({ className, height = 420 }: MapProps) {
     };
 
     const m = new maplibregl.Map({ container: mapRef.current, style, center: [10, 50], zoom: 3.5, attributionControl: { compact: true } });
-    // Enable tilted view (pitch), keep rotation locked
-    m.setPitch(35);
+    // Remove tilt: keep a flat (pitch 0) map
+    m.setPitch(0);
     m.setBearing(0);
     m.dragRotate.disable();
     m.touchZoomRotate.disableRotation();
@@ -241,6 +244,7 @@ export default function Map({ className, height = 420 }: MapProps) {
         extraZoom?: number;
         targetZoom?: number;
         roi?: { minX: number; maxX: number; minY: number; maxY: number };
+        followZoom?: boolean; // if false, skip post-fit zoom-in phase
       }
     ) => {
       const padding = opts?.padding ?? 6;
@@ -248,6 +252,7 @@ export default function Map({ className, height = 420 }: MapProps) {
       const maxZoom = opts?.maxZoom ?? 8.5;
       const extraZoom = opts?.extraZoom ?? 0.6;
       const roi = opts?.roi;
+      const followZoom = opts?.followZoom !== false; // default true for backward compatibility
 
       const src = m.getSource("countries") as GeoJSONSource | undefined;
       const getGeoJSON = async (): Promise<GeoJSON.FeatureCollection | undefined> => {
@@ -301,57 +306,172 @@ export default function Map({ className, height = 420 }: MapProps) {
       const bounds: [[number, number],[number, number]] = [[minX, minY],[maxX, maxY]];
       try {
         m.fitBounds(bounds, { padding, duration, maxZoom });
-        m.once("moveend", () => {
-          try {
-            const z = m.getZoom();
-            const nextZoom = typeof opts?.targetZoom === "number" ? Math.min(opts.targetZoom, maxZoom + 0.5) : Math.min(z + extraZoom, maxZoom + 0.5);
-            m.easeTo({ zoom: nextZoom, center, duration: 300 });
-          } catch {}
-        });
+        if (followZoom) {
+          m.once("moveend", () => {
+            try {
+              const z = m.getZoom();
+              const nextZoom = typeof opts?.targetZoom === "number" ? Math.min(opts.targetZoom, maxZoom + 0.5) : Math.min(z + extraZoom, maxZoom + 0.5);
+              m.easeTo({ zoom: nextZoom, center, duration: 300 });
+            } catch {}
+          });
+        }
       } catch {}
     };
 
     // Helper to reset view to default
     const resetView = () => {
       try {
-        m.easeTo({ center: [10, 50], zoom: 3.5, pitch: 65, bearing: 0, duration: 350 });
+        m.easeTo({ center: [10, 50], zoom: 3.5, pitch: 0, bearing: 0, duration: 350 });
       } catch {}
     };
 
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent<"sovereign" | "federal" | "overlay">).detail;
-      if (detail === "sovereign") {
-        // Alapréteg színezése: EU országok különböző zöld árnyalatokkal
-        setBaseShades();
-        showEUFill(false);
-      } else if (detail === "federal") {
-        // Alapréteg színezése: EU országok pirossal
-        setBaseEUColor("#EF4444");
-        showEUFill(false);
-      } else {
-        // 3) Északi keresztény civilizáció: EU + Oroszország egy blokk ZÖLD árnyalatokkal
-        const euPlusRu = [...getEUAdminNames(), "Russia", "Russian Federation"];
-        setBaseShades(euPlusRu);
-        showEUFill(false);
-      }
-      // Reset zoom to default for every state
-      resetView();
+      const detail = (e as CustomEvent<ScenarioKey>).detail;
+      setScenario(detail);
+      try {
+        applyScenario(m, detail, {
+          setBaseShades,
+            setBaseEUColor,
+            showEUFill,
+            getEUAdminNames
+        });
+        // Border styling per scenario
+        const bordersId = 'country-borders';
+        if (m.getLayer(bordersId)) {
+          if (detail === 'federal') {
+            m.setPaintProperty(bordersId, 'line-color', '#0A2A6A');
+            m.setPaintProperty(bordersId, 'line-opacity', 0.25);
+            m.setPaintProperty(bordersId, 'line-width', 0.1); // thinned for federal view
+            m.setPaintProperty(bordersId, 'line-dasharray', [2,2]);
+          } else {
+            m.setPaintProperty(bordersId, 'line-color', '#0A2A6A');
+            m.setPaintProperty(bordersId, 'line-opacity', 0.9);
+            m.setPaintProperty(bordersId, 'line-width', 1.2);
+            m.setPaintProperty(bordersId, 'line-dasharray', [1,0]);
+          }
+        }
+        const isDev = eventName.includes('-dev');
+        if (detail === 'sovereign') {
+          // Confederation view: focused EU frame (no pitch), stable zoom per breakpoint
+          const adaptiveConfed = () => {
+            const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+            if (w < 640) return { padding: 16, targetZoom: 3.9 };
+            if (w < 1024) return { padding: 24, targetZoom: 4.05 };
+            return { padding: 30, targetZoom: 4.15 };
+          };
+          const { padding, targetZoom } = adaptiveConfed();
+          try {
+            fitToNames(getEUAdminNames(), {
+              padding: isDev ? padding : 24,
+              targetZoom: isDev ? targetZoom : 4.1,
+              duration: 750,
+              roi: { minX: -25, maxX: 40, minY: 34, maxY: 72 },
+              followZoom: false
+            });
+          } catch {}
+          try { m.easeTo({ pitch: 0, duration: 300 }); } catch {}
+        } else if (detail === 'federal') {
+          // Adaptive camera (dev map only): responsive pitch & padding
+          const adaptive = () => {
+            const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+            if (w < 640) return { pitch: 0, padding: 18, targetZoom: 4.0 };
+            if (w < 1024) return { pitch: 10, padding: 28, targetZoom: 4.15 };
+            return { pitch: 14, padding: 36, targetZoom: 4.25 };
+          };
+          const { pitch, padding, targetZoom } = adaptive();
+          try {
+            fitToNames(getEUAdminNames(), {
+              padding: isDev ? padding : 24,
+              targetZoom: isDev ? targetZoom : 4.2,
+              duration: 800,
+              roi: { minX: -25, maxX: 40, minY: 34, maxY: 72 },
+              followZoom: false // disable post-fit zoom-in
+            });
+          } catch {}
+          if (isDev) {
+            const applyPitch = () => { try { m.easeTo({ pitch, duration: 400 }); } catch {} };
+            m.once('moveend', applyPitch);
+          } else {
+            try { m.easeTo({ pitch: 0, duration: 300 }); } catch {}
+          }
+        } else if (detail === 'overlay') {
+          // Scenario 3 (EU + Extended Eurasian) – Portugal to left edge requirement
+          const extendedNames = [...getEUAdminNames(), 'Russia', 'Russian Federation'];
+          const w = typeof window !== 'undefined' ? window.innerWidth : 1200;
+          const targetZoom = w < 640 ? 3.1 : (w < 1024 ? 3.0 : 2.9);
+          const padding = w < 640 ? 18 : (w < 1024 ? 22 : 26);
+          // ROI narrowed on west (minX -15) so Atlantic gap reduced; east trimmed to 75 for balance
+          try {
+            fitToNames(extendedNames, {
+              padding,
+              targetZoom,
+              duration: 780,
+              roi: { minX: -3, maxX: 170, minY: 34, maxY: 72 },
+              followZoom: false
+            });
+          } catch {}
+          try { m.easeTo({ pitch: 0, duration: 300 }); } catch {}
+        } else {
+          // (Unused now) Fallback reset
+          try {
+            const base = { center: [10, 50] as [number, number], zoom: 3.5, bearing: 0, duration: 350 } as const;
+            m.easeTo({ center: [...base.center], zoom: base.zoom, bearing: base.bearing, duration: base.duration, pitch: 0 });
+          } catch {}
+        }
+      } catch {}
     };
-    window.addEventListener("europa:set-scenario", handler as EventListener);
+    window.addEventListener(eventName, handler as EventListener);
 
     // Auto-activate sovereign on first load for visual feedback
     setTimeout(() => {
-      try {
-        handler(new CustomEvent("europa:set-scenario", { detail: "sovereign" }))
-      } catch {}
+      try { handler(new CustomEvent(eventName, { detail: 'sovereign' } as any)); } catch {}
     }, 0);
 
-    return () => window.removeEventListener("europa:set-scenario", handler as EventListener);
-  }, []);
+    return () => window.removeEventListener(eventName, handler as EventListener);
+  }, [eventName]);
+
+  const legendContent = React.useMemo(() => {
+    if (!withLegend) return null;
+    if (!scenario || scenario === 'sovereign') {
+      return [
+        { color: '#86EFAC', label: 'Distinct member shades' },
+        { color: '#4ADE80', label: 'Variation = sovereign diversity' },
+        { color: '#2EC5B6', label: 'Potential extension (inactive)' }
+      ];
+    }
+    if (scenario === 'federal') {
+      return [
+        { color: '#EF4444', label: 'Unified federal entity' },
+        { dash: true, color: '#0A2A6A', label: 'Internal borders (de-emphasized)' },
+        { color: '#2EC5B6', label: 'Legacy overlay (hidden)' }
+      ];
+    }
+    // overlay
+    return [
+      { color: '#2EC5B6', label: 'EU core (teal)' },
+      { color: '#10B981', label: 'Extended grouping' },
+      { color: '#FFCC00', label: 'Hover highlight' }
+    ];
+  }, [scenario, withLegend]);
 
   return (
     <div className={("relative "+(className ?? ""))}>
       <div ref={mapRef} className={"rounded-lg overflow-hidden border border-black/5 shadow-sm"} style={{ height }} aria-label="Térkép – Europe" role="img" />
+      {withLegend && legendContent && (
+        <div className="absolute top-2 left-2 bg-white/90 backdrop-blur-sm rounded shadow px-3 py-2 text-[11px] space-y-1 text-midnight border border-black/10">
+          <div className="font-medium">Legend{scenario ? ` – ${scenario}` : ''}</div>
+          {legendContent.map((item, i) => (
+            <div key={i} className="flex items-center gap-1">
+              {item.dash ? (
+                <span className="inline-block w-4 h-[2px] bg-midnight" style={{ backgroundImage: "repeating-linear-gradient(90deg,#0A2A6A 0 2px,transparent 2px 4px)" }} />
+              ) : (
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: item.color }} />
+              )}
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
