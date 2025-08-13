@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import maplibregl, { Map as MLMap } from "maplibre-gl";
+import maplibregl, { Map as MLMap, MapLayerMouseEvent, MapGeoJSONFeature, ExpressionSpecification, GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { getEUList, getEUAdminNames } from "@/lib/regions";
 
@@ -53,7 +53,7 @@ export default function Map({ className, height = 420 }: MapProps) {
         id: "country-fill",
         type: "fill",
         source: "countries",
-        paint: { "fill-color": "#F5F7FB", "fill-outline-color": "#0F172A", "fill-opacity": 0.7 }
+        paint: { "fill-color": "#00000000", "fill-outline-color": "#0F172A", "fill-opacity": 1 }
       });
 
       // EU alapszín: külön réteg, ISO_A2 kódok alapján szűrve (robosztusabb), ADMIN név fallback-kal
@@ -76,7 +76,7 @@ export default function Map({ className, height = 420 }: MapProps) {
         layout: { visibility: "none" },
       });
 
-      const hoverOpacity: maplibregl.ExpressionSpecification = [
+      const hoverOpacity: ExpressionSpecification = [
         "case",
         ["boolean", ["feature-state", "hover"], false],
         0.35,
@@ -130,7 +130,7 @@ export default function Map({ className, height = 420 }: MapProps) {
         f = (feats && feats[0]) as maplibregl.MapGeoJSONFeature | undefined;
       }
       const id = f?.id as string | number | undefined;
-      const props = f?.properties as Record<string, any> | undefined;
+      const props = f?.properties as Record<string, unknown> | undefined;
       const name = props?.ADMIN || props?.NAME || props?.name || props?.NAME_EN || props?.name_en;
       setHoverById(id ?? null);
       m.getCanvas().style.cursor = id != null ? "pointer" : "";
@@ -187,15 +187,15 @@ export default function Map({ className, height = 420 }: MapProps) {
         const EU_NAMES_DEFAULT = getEUAdminNames();
         const USED_NAMES = names && names.length ? names : EU_NAMES_DEFAULT;
         if (color) {
-          const expr: any = [
+          const expr: ExpressionSpecification | undefined = color ? [
             "case",
             ["in", ["coalesce", ["get", "ADMIN"], ["get", "NAME"], ["get", "name"], ["get", "NAME_EN"], ["get", "name_en"]], ["literal", USED_NAMES]],
             color,
-            "#F5F7FB",
-          ];
-          m.setPaintProperty("country-fill", "fill-color", expr);
+            "#00000000",
+          ] : undefined;
+          if (expr) m.setPaintProperty("country-fill", "fill-color", expr as any);
         } else {
-          m.setPaintProperty("country-fill", "fill-color", "#F5F7FB");
+          m.setPaintProperty("country-fill", "fill-color", "#00000000");
         }
       };
       if (m.isStyleLoaded()) apply(); else m.once("load", apply);
@@ -220,12 +220,12 @@ export default function Map({ className, height = 420 }: MapProps) {
           const c = palette[i % palette.length];
           (groups[c] = groups[c] || []).push(n);
         });
-        const coalesced: any = ["coalesce", ["get", "ADMIN"], ["get", "NAME"], ["get", "name"], ["get", "NAME_EN"], ["get", "name_en"]];
-        const expr: any[] = ["case"];
+        const coalesced = ["coalesce", ["get", "ADMIN"], ["get", "NAME"], ["get", "name"], ["get", "NAME_EN"], ["get", "name_en"]];
+        const expr: (string | unknown)[] = ["case"];
         Object.entries(groups).forEach(([color, group]) => {
-          expr.push(["in", coalesced, ["literal", group]] as any, color as any);
+          expr.push(["in", coalesced, ["literal", group]], color);
         });
-        expr.push("#F5F7FB"); // else
+        expr.push("#00000000");
         m.setPaintProperty("country-fill", "fill-color", expr as any);
       };
       if (m.isStyleLoaded()) apply(); else m.once("load", apply);
@@ -249,10 +249,10 @@ export default function Map({ className, height = 420 }: MapProps) {
       const extraZoom = opts?.extraZoom ?? 0.6;
       const roi = opts?.roi;
 
-      const src: any = m.getSource("countries");
-      const getGeoJSON = async (): Promise<any | undefined> => {
-        const data = src && (src._data || (src._options && src._options.data));
-        if (data && data.features) return data;
+      const src = m.getSource("countries") as GeoJSONSource | undefined;
+      const getGeoJSON = async (): Promise<GeoJSON.FeatureCollection | undefined> => {
+        const data: unknown = (src as any)?._data || (src as any)?._options?.data; // maplibre lacks public accessor
+        if (data && typeof data === 'object' && 'features' in data) return data as GeoJSON.FeatureCollection;
         try {
           const res = await fetch(COUNTRIES_URL);
           return await res.json();
@@ -267,11 +267,11 @@ export default function Map({ className, height = 420 }: MapProps) {
       let gMinX = Infinity, gMinY = Infinity, gMaxX = -Infinity, gMaxY = -Infinity;
       let rMinX = Infinity, rMinY = Infinity, rMaxX = -Infinity, rMaxY = -Infinity;
       const inROI = (x: number, y: number) => !roi ? true : (x >= roi.minX && x <= roi.maxX && y >= roi.minY && y <= roi.maxY);
-      const coalesceName = (p: any) => p?.ADMIN || p?.NAME || p?.name || p?.NAME_EN || p?.name_en;
-      const walk = (coords: any) => {
+      const coalesceName = (p: Record<string, unknown> | null | undefined) => (p?.ADMIN as string) || (p?.NAME as string) || (p?.name as string) || (p?.NAME_EN as string) || (p?.name_en as string);
+      const walk = (coords: unknown): void => {
         if (!coords) return;
-        if (typeof coords[0] === "number") {
-          const x = coords[0], y = coords[1];
+        if (Array.isArray(coords) && typeof coords[0] === "number") {
+          const x = coords[0] as number, y = coords[1] as number;
           if (Number.isFinite(x) && Number.isFinite(y)) {
             if (x < gMinX) gMinX = x; if (y < gMinY) gMinY = y;
             if (x > gMaxX) gMaxX = x; if (y > gMaxY) gMaxY = y;
@@ -280,7 +280,7 @@ export default function Map({ className, height = 420 }: MapProps) {
               if (x > rMaxX) rMaxX = x; if (y > rMaxY) rMaxY = y;
             }
           }
-        } else {
+        } else if (Array.isArray(coords)) {
           for (const c of coords) walk(c);
         }
       };
@@ -298,7 +298,7 @@ export default function Map({ className, height = 420 }: MapProps) {
       const maxY = useROI ? rMaxY : gMaxY;
       if (minX === Infinity) return;
       const center: [number, number] = [ (minX + maxX) / 2, (minY + maxY) / 2 ];
-      const bounds: any = [[minX, minY], [maxX, maxY]];
+      const bounds: [[number, number],[number, number]] = [[minX, minY],[maxX, maxY]];
       try {
         m.fitBounds(bounds, { padding, duration, maxZoom });
         m.once("moveend", () => {
@@ -351,7 +351,7 @@ export default function Map({ className, height = 420 }: MapProps) {
 
   return (
     <div className={("relative "+(className ?? ""))}>
-      <div ref={mapRef} className={"rounded-lg overflow-hidden border border-black/5 shadow-sm bg-white"} style={{ height }} aria-label="Térkép – Europe" role="img" />
+      <div ref={mapRef} className={"rounded-lg overflow-hidden border border-black/5 shadow-sm"} style={{ height }} aria-label="Térkép – Europe" role="img" />
     </div>
   );
 }

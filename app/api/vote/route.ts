@@ -44,15 +44,14 @@ export async function POST(req: NextRequest) {
     if (!choice.rows.length) return NextResponse.json({ error: 'Choice not found' }, { status: 404 });
     const choiceId = choice.rows[0].id as string;
 
-    const cookieStore = await cookies();
+    const cookieStore = cookies();
     let sessionId = cookieStore.get('vsid')?.value;
     const resHeaders: Record<string, string> = {};
     if (!sessionId) {
       const newSession = await client.query('insert into voter_sessions (source) values ($1) returning id', ['guest']);
-      sessionId = newSession.rows[0].id;
+      sessionId = newSession.rows[0].id as string;
       resHeaders['Set-Cookie'] = `vsid=${sessionId}; Path=/; Max-Age=${60 * 60 * 24 * 365}; HttpOnly; SameSite=Lax`;
     } else {
-      // Update the expiration date of the existing session cookie
       resHeaders['Set-Cookie'] = `vsid=${sessionId}; Path=/; Max-Age=${60 * 60 * 24 * 365}; HttpOnly; SameSite=Lax`;
     }
 
@@ -61,7 +60,6 @@ export async function POST(req: NextRequest) {
     const ipHash = hash(ip.split(',')[0].trim());
     const uaHash = hash(ua);
 
-    // DUP CHECK (best-effort; real enforcement by unique index)
     const dup = await client.query('select 1 from votes where poll_id=$1 and voter_session_id=$2 limit 1', [pollId, sessionId]);
     if (dup.rows.length) {
       return new NextResponse(JSON.stringify({ error: 'Already voted' }), { status: 409, headers: { 'Content-Type': 'application/json', ...resHeaders } });
@@ -74,8 +72,8 @@ export async function POST(req: NextRequest) {
     );
 
     return new NextResponse(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json', ...resHeaders } });
-  } catch (e: any) {
-    if (e?.code === '23505') {
+  } catch (e: unknown) {
+    if (typeof e === 'object' && e && 'code' in e && (e as { code?: string }).code === '23505') {
       return NextResponse.json({ error: 'Already voted' }, { status: 409 });
     }
     console.error(e);
